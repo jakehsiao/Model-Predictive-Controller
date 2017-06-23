@@ -63,9 +63,6 @@ Larger constraints should be used, then I tried "1 1 1 200 0 1 0" and this time 
 
 Constraints on throttle should be used, then I tried "1 1 1 200 100 1 1" and this time it successfully drove arount the track.
 
-## References
-1.
-2.
 
 
 
