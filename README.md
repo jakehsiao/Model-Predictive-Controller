@@ -11,7 +11,7 @@ The model I used to predict the vehicle's state is the kinetic model. There are 
 
 In this model, 6 states and 2 actuators are included.
 
-### states
+### States
 - x: horizontal coordinate of the car in vehicle's coordinate system
 - y: vertical coordinate of the car in vehicle's coordinate system
 - psi: orientation of the car
@@ -19,11 +19,21 @@ In this model, 6 states and 2 actuators are included.
 - cte: the cross track error about the track
 - epsi: the orientation error about the track
 
-### actuators
+### Actuators
 - delta: the steering angle in radian
 - a: the throttle value
 
 The update function see below:
+```
+x_t+1 = x_t + v_t * cos(psi_t) * dt
+y_t+1 = y_t + v_t * sin(psi_t) * dt
+psi_t+1 = psi_t + v_t / Lf * delta * dt
+v_t+1 = v_t + a_t * dt
+cte_t+1 = cte_t + v_t * sin(psi_t) * dt
+epsi_t+1 = epsi_t + v_t * delta * dt / Lf
+
+```
+
 
 ## Implementation details
 ### N and dt: how much future states would be predicted and how frequent
@@ -53,7 +63,9 @@ Larger constraints should be used, then I tried "1 1 1 200 0 1 0" and this time 
 
 Constraints on throttle should be used, then I tried "1 1 1 200 100 1 1" and this time it successfully drove arount the track.
 
-
+## References
+1.
+2.
 
 
 
