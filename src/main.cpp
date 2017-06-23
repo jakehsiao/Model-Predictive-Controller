@@ -4,6 +4,7 @@
 #include <iostream>
 #include <thread>
 #include <vector>
+#include <cstdio>
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "MPC.h"
@@ -65,11 +66,17 @@ Eigen::VectorXd polyfit(Eigen::VectorXd xvals, Eigen::VectorXd yvals,
   return result;
 }
 
-int main() {
+int main(int argc, char* argv[]) {
   uWS::Hub h;
 
   // MPC is initialized here!
   MPC mpc;
+  if(argc == 8){ // if parameters are specialized in running
+    mpc.Init(atof(argv[1]), atof(argv[2]), atof(argv[3]), atof(argv[4]), atof(argv[5]), atof(argv[6]), atof(argv[7]));
+  }
+  else{
+    mpc.Init(1, 1, 1, 200, 100, 1, 1); // use pre-tuned parameters
+  }
 
   h.onMessage([&mpc](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
@@ -77,7 +84,7 @@ int main() {
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
     string sdata = string(data).substr(0, length);
-    cout << sdata << endl;
+    //cout << sdata << endl;
     if (sdata.size() > 2 && sdata[0] == '4' && sdata[1] == '2') {
       string s = hasData(sdata);
       if (s != "") {
@@ -87,10 +94,11 @@ int main() {
           // j[1] is the data JSON object
           vector<double> ptsx = j[1]["ptsx"];
           vector<double> ptsy = j[1]["ptsy"];
-          double px = j[1]["x"];
-          double py = j[1]["y"];
+          double x = j[1]["x"];
+          double y = j[1]["y"];
           double psi = j[1]["psi"];
-          double v = j[1]["speed"];
+          double v_raw = j[1]["speed"]; // mph to m/s
+	  double v = v_raw * 0.447;
 
           /*
           * TODO: Calculate steeering angle and throttle using MPC.
@@ -100,12 +108,55 @@ int main() {
           */
           double steer_value;
           double throttle_value;
+	  steer_value = j[1]["steering_angle"];
+	  throttle_value = j[1]["throttle"];
+            
+	  // PART: get the state, print the state
+          // Vehicle's version of ptsx
+          int num_of_pts = ptsx.size();
+          Eigen::VectorXd v_pts_x = Eigen::VectorXd(num_of_pts);
+          Eigen::VectorXd v_pts_y = Eigen::VectorXd(num_of_pts);
+          for(int i=0; i<num_of_pts; i++){
+	    double dx = ptsx[i] - x;
+	    double dy = ptsy[i] - y;
+	    double cos_psi = cos(-psi);
+	    double sin_psi = sin(-psi);
+            v_pts_x(i) = dx * cos_psi - dy * sin_psi;
+            v_pts_y(i) = dx * sin_psi + dy * cos_psi;
+          }
+          Eigen::VectorXd coeffs = polyfit(v_pts_x, v_pts_y, 3);
+          double cte = coeffs[0];
+          double epsi = psi - atan(coeffs[1]);
+
+	  // there's a delay in actual control and the predicted state if current state is used,
+	  // so use the predicted state after delay instead.
+	  double dt = 0.1;
+	  double Lf = 2.67;
+
+	  double x_p = v * dt;
+	  double y_p = 0;
+	  double psi_p = - v * steer_value * dt / Lf;
+	  double v_p = v + throttle_value * dt;
+	  double cte_p = cte + v * sin(epsi) * dt;
+	  double epsi_p = epsi + psi_p;
+
+          Eigen::VectorXd state(6);
+          state << x_p, y_p, psi_p, v_p, cte_p, epsi_p;
+            
+	  // PART: solve it, no debug require
+          vector<double> actuators = mpc.Solve(state, coeffs);
+          steer_value = - actuators[0]; //actual steer is the negative of solved steer
+          throttle_value = actuators[1];
+	  std::cout << "cte:" << cte << " epsi:" << epsi << std::endl;
+	  std::cout << "steer:" << steer_value << " throttle:" << throttle_value << std::endl;
+	  std::cout << "coeffs:" << coeffs[0] << " " << coeffs[1] << " " << coeffs[2] << " " << coeffs[3] << std::endl;
+	  printf("---\n");
 
           json msgJson;
-          msgJson["steering_angle"] = steer_value;
+          msgJson["steering_angle"] = steer_value / 0.436; //Convert to -1 ~ 1
           msgJson["throttle"] = throttle_value;
           auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-          std::cout << msg << std::endl;
+          //std::cout << msg << std::endl;
           // Latency
           // The purpose is to mimic real driving conditions where
           // the car does actuate the commands instantly.

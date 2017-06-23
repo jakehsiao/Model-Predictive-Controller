@@ -8,7 +8,15 @@ using namespace std;
 
 class MPC {
  public:
+  double k_cte;
+  double k_epsi;
+  double k_v;
+  double k_d;
+  double k_a;
+  double k_dd;
+  double k_da;
   MPC();
+  void Init(double k_cte, double k_epsi, double k_v, double k_d, double k_a, double k_dd, double k_da);
 
   virtual ~MPC();
 

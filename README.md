@@ -1,5 +1,61 @@
-# CarND-Controls-MPC
-Self-Driving Car Engineer Nanodegree Program
+# Model Predictive Controller
+Project in Self-Driving Car Engineer Nanodegree Program
+
+## Introduction
+When we want to program our cars to drive in a certain track, we cannot directly let it change its coordinates like in video games, we need to adjust the steer and throttle together in order to make our car drive. The controller algorithm is designed for this which adjust the actuators to let the vehicle performances a good drive on the planned track.
+
+This controller I implemented is called model predictive controller, which is a machine-learning-liked algorithm: minimize the cost function by updating the parameters. It would predict the vehicle's future states in current set of actuators, calculate the cost function according to the future states and planed track, then calculate the gradients of the actuator values which minimize the cost function, then update the actuators according to gradients.
+
+## Model
+The model I used to predict the vehicle's state is the kinetic model. There are 2 popular models for MPCs in self driving car: kinetic model and dynamic model. Dynamic model is more complex and computation expensive but more accurate and more robust to the physically complex situations. In this project, as the car is driven in a simulator which does not consider the complex newton forces so kinetic model is used.
+
+In this model, 6 states and 2 actuators are included.
+
+### states
+- x: horizontal coordinate of the car in vehicle's coordinate system
+- y: vertical coordinate of the car in vehicle's coordinate system
+- psi: orientation of the car
+- v: speed of the car
+- cte: the cross track error about the track
+- epsi: the orientation error about the track
+
+### actuators
+- delta: the steering angle in radian
+- a: the throttle value
+
+The update function see below:
+
+## Implementation details
+### N and dt: how much future states would be predicted and how frequent
+The MPC would predict "N" future states seperated in "dt" amount of time, so choose appropriate values of N and dt is required. This time I set N to 20 and dt to 0.1s so future 2 seconds of the vehicle's state would be predicted.
+
+0.1s is the latency of the simulater, so dt=0.1s is chosen. 3 values of N are tried, 15 20 and 25. No obvious differences observed between these values, then 20 is chosen.
+
+### Delay of the control
+In real self driving cases, there is a time delay between when the state inputed to the controller and when the actuators receive the output the the controller and make move. Therefore, the inputed state should be the predicted state at the time actuators make move instead of the current state.
+
+
+## Cost function and parameter tuning
+The object of MPC is to minimize the cost function, so an appropriate cost function is the most important part of this project.
+
+Here is my cost function chosen in this project:
+```
+Cost = w1 * cte ^ 2 + w2 * epsi ^ 2 + w3 * (v - ref_v) ^ 2 + w4 * delta ^ 2 + w5 * a ^ 2 + w6 * ddelta ^ 2 + w7 * da ^ 2
+
+```
+Which "delta" and "a" are the steer and throttle used in order to make a smoother drive and "ddelta" and "da" are the difference of the steer and throttle between current state and previous state in order to prevent sudden accelerations and osillations.
+
+To tune the parameters w1 to w7, first I tried "1 1 1 0 0 0 0" which only first 3 terms of the cost function are considered. In this case, the vehicle osillated violently and then fell off the track.
+
+Constraints on steering should be used, then I tried "1 1 1 1 0 1 0" but the car still oscillated and went off the track.
+
+Larger constraints should be used, then I tried "1 1 1 200 0 1 0" and this time it drives smoothly without big oscillations. However, the speed went up really fast ,then over the reference speed sat which is 40, then up to 80 which led the car rush out of the track.
+
+Constraints on throttle should be used, then I tried "1 1 1 200 100 1 1" and this time it successfully drove arount the track.
+
+
+
+
 
 ---
 
